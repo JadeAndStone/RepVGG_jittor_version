@@ -53,18 +53,41 @@ pytorch版本： 2.7.1+cu128 (python 3.10.18)
 
 https://blog.csdn.net/qq_37541097/article/details/113027489
 ## 实验记录
+| |repvgg|vgg_bn|
+|------|------|------|
+|num_epoch (with Earlystopper)| 20 | 20 |
+|top1_acc| 0.4822 | 0.477 |
+|top5_acc| 0.7640 | 0.7558 |
+
+
 | |jittor|pytorch|
 |------|------|------|
 |num_epoch (with Earlystopper)| 20 | 50 |
-|origin_deploy_time| 5.839050531387329 s| 6.785406827926636 s|
-|rep_deploy_time| 1.8714940547943115 s| 4.278181314468384 s|
-|origin_top1_acc| 0.48216666666666674 | 0.4884999841451645 |
-|rep_top1_acc| 0.4821666666666667 | 0.4886666541298231 |
-|origin_top5_acc| 0.764 | 0.7664999773104986 | 0.7664999773104986 |
-|rep_top5_acc| 0.7640000000000001 | 0.7663333127895992 |
+|origin_deploy_time| 5.839 s| 6.8306 s|
+|rep_deploy_time| 1.871 s| 4.4098 s|
+|origin_top1_acc| 0.4822 | 0.4885 |
+|rep_top1_acc| 0.4822 | 0.4887 |
+|origin_top5_acc| 0.7640 | 0.7665 |
+|rep_top5_acc| 0.7640 | 0.7663 |
 ## 实验分析
-由上不难看出，rep 前后的模型精度基本一致（经验证，在归一化条件下，输出 logit 误差在1e-7量级），而 rep 后的推理速度有明显提升，这与论文结论一致。
+1. with vgg_bn: 
+     
+     多分支的引入提升了一定精度，但不算很多，可能是由于数据集本身存在一定错误，以及样本量远不足以匹配数据复杂性。
 
-而且，对比 jittor 和 pytorch 的结果可以看出，jittor 的速度提升幅度更大，由于即时编译运算符的特性，jittor 能够很好地适应 rep 操作后运算类型较少的特性，故而优势更为明显。
+2. with pytorch:
 
-此外，jittor 的整体推理速度也显著优于 pytorch 。jittor 的动态编译过程相比较传统的静态编译，使其可以在运行时获得更多的额外信息，如计算图上下文，形状信息等等，这些信息都可以进一步用于提升算子性能。
+     rep 前后的模型精度基本一致（经验证，在归一化条件下，输出 logit 误差在1e-7量级），而 rep 后的推理速度有明显提升，这与论文结论一致。
+
+     而且，对比 jittor 和 pytorch 的结果可以看出，jittor 的速度提升幅度更大，由于即时编译运算符的特性，jittor 能够很好地适应 rep 操作后运算类型较少的特性，故而优势更为明显。
+
+     此外，jittor 的整体推理速度也显著优于 pytorch 。jittor 的动态编译过程相比较传统的静态编译，使其可以在运行时获得更多的额外信息，如计算图上下文，形状信息等等，这些信息都可以进一步用于提升算子性能。
+
+![image](jittor_RepVGG_Loss_Curve.png) ![image](pytorch_RepVGG_Loss_Curve.png)
+
+* Pytorch 训练过程后期出现较严重过拟合
+* Jittor 训练收敛速度更快
+
+RepVGG 预测热力图
+
+![image](RepVGG_Heatmap.png)
+

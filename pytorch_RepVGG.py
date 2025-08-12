@@ -202,50 +202,50 @@ num_epoch=50
 train_loss_total=[]
 val_loss_total=[]
 early_stopper=Earlystopper(patience=5,min_delta=1e-3)
-for epoch in range(num_epoch):
-    train_loss,val_loss=0,0
-    train_acc,top1_val_acc,top5_val_acc=0,0,0
-    net.train()
-    for X,y in train_loader:
-        trainer.zero_grad()
-        l=loss(net(X.to(device)),y.to(device))
-        l.backward()
-        trainer.step()
-    with torch.no_grad():
-        net.eval()
-        for X,y in val_loader:
-            top1_val_acc+=accuracy(net(X.to(device)),y.to(device))
-            top5_val_acc+=top5_accuracy(net(X.to(device)),y.to(device))
-            val_loss+=loss(net(X.to(device)),y.to(device))
+# for epoch in range(num_epoch):
+#     train_loss,val_loss=0,0
+#     train_acc,top1_val_acc,top5_val_acc=0,0,0
+#     net.train()
+#     for X,y in train_loader:
+#         trainer.zero_grad()
+#         l=loss(net(X.to(device)),y.to(device))
+#         l.backward()
+#         trainer.step()
+#     with torch.no_grad():
+#         net.eval()
+#         for X,y in val_loader:
+#             top1_val_acc+=accuracy(net(X.to(device)),y.to(device))
+#             top5_val_acc+=top5_accuracy(net(X.to(device)),y.to(device))
+#             val_loss+=loss(net(X.to(device)),y.to(device))
              
-        for X,y in train_loader:
-            train_acc+=accuracy(net(X.to(device)),y.to(device))
-            train_loss+=loss(net(X.to(device)),y.to(device))
+#         for X,y in train_loader:
+#             train_acc+=accuracy(net(X.to(device)),y.to(device))
+#             train_loss+=loss(net(X.to(device)),y.to(device))
         
-        top1_val_acc/=len(val_set)/batch_size
-        top5_val_acc/=len(val_set)/batch_size
-        train_acc/=len(train_set)/batch_size
+#         top1_val_acc/=len(val_set)/batch_size
+#         top5_val_acc/=len(val_set)/batch_size
+#         train_acc/=len(train_set)/batch_size
         
-        val_loss/=len(val_set)/batch_size
-        train_loss/=len(train_set)/batch_size
+#         val_loss/=len(val_set)/batch_size
+#         train_loss/=len(train_set)/batch_size
         
-        train_loss_total.append(train_loss)
-        val_loss_total.append(val_loss)
+#         train_loss_total.append(train_loss)
+#         val_loss_total.append(val_loss)
         
-        print(f'epoch: {epoch+1}')
-        print(f'train_loss: {train_loss}, val_loss: {val_loss}')
-        print(f'train_acc: {train_acc}, top1_val_acc: {top1_val_acc}, top5_val_acc: {top5_val_acc}')
+#         print(f'epoch: {epoch+1}')
+#         print(f'train_loss: {train_loss}, val_loss: {val_loss}')
+#         print(f'train_acc: {train_acc}, top1_val_acc: {top1_val_acc}, top5_val_acc: {top5_val_acc}')
 
-        early_stopper(val_loss,net)
-        if early_stopper.stop:
-            break
+#         early_stopper(val_loss,net)
+#         if early_stopper.stop:
+#             break
 
-early_stopper.restore(net)
-torch.save(net.state_dict(),'./pytorch_train_weights.pth')
+# early_stopper.restore(net)
+# torch.save(net.state_dict(),'./pytorch_train_weights.pth')
 
 net.eval()
 top1_val_acc,top5_val_acc=0,0
-# net.load_state_dict(torch.load('./pytorch_train_weights.pth'))
+net.load_state_dict(torch.load('./pytorch_train_weights.pth'))
 start_time=time.time()
 for X,y in val_loader:
     top1_val_acc+=accuracy(net(X.to(device)),y.to(device))
@@ -253,12 +253,12 @@ for X,y in val_loader:
 end_time=time.time()
 top1_val_acc/=len(val_set)/batch_size
 top5_val_acc/=len(val_set)/batch_size
-print(f'origin_deploy_time: {end_time-start_time}, origin_top1_acc: {top1_val_acc}, origin_top5_acc: {top5_val_acc}')
+print(f'origin_deploy_time: {(end_time-start_time):.4f}, origin_top1_acc: {top1_val_acc:.4f}, origin_top5_acc: {top5_val_acc:.4f}')
 
 net.switch_to_deploy()
 net=net.to(device)
-# net.load_state_dict(torch.load('./pytorch_deploy_weights.pth'))
-torch.save(net.state_dict(),'./pytorch_deploy_weights.pth')
+net.load_state_dict(torch.load('./pytorch_deploy_weights.pth'))
+# torch.save(net.state_dict(),'./pytorch_deploy_weights.pth')
 top1_val_acc,top5_val_acc=0,0
 start_time=time.time()
 for X,y in val_loader:
@@ -267,7 +267,7 @@ for X,y in val_loader:
 end_time=time.time()
 top1_val_acc/=len(val_set)/batch_size
 top5_val_acc/=len(val_set)/batch_size
-print(f'rep_deploy_time: {end_time-start_time}, rep_top1_acc: {top1_val_acc}, rep_top5_acc: {top5_val_acc}')
+print(f'rep_deploy_time: {(end_time-start_time):.4f}, rep_top1_acc: {top1_val_acc:.4f}, rep_top5_acc: {top5_val_acc:.4f}')
 
 # plt.figure(figsize=(10, 5))
 # plt.plot(train_loss_total,label='Train Loss')

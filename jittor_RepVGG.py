@@ -202,50 +202,77 @@ num_epoch=50
 train_loss_total=[]
 val_loss_total=[]
 early_stopper=Earlystopper(patience=5,min_delta=1e-3)
-for epoch in range(num_epoch):
-    train_loss,val_loss=0,0
-    train_acc,top1_val_acc,top5_val_acc=0,0,0
-    net.train()
-    for X,y in train_loader:
-        trainer.zero_grad()
-        l=loss(net(X),y)
-        trainer.backward(l)
-        trainer.step()
-    with jt.no_grad():
-        net.eval()
-        for X,y in val_loader:
-            top1_val_acc+=accuracy(net(X),y)
-            top5_val_acc+=top5_accuracy(net(X),y)
-            val_loss+=loss(net(X),y)
+# for epoch in range(num_epoch):
+#     train_loss,val_loss=0,0
+#     train_acc,top1_val_acc,top5_val_acc=0,0,0
+#     net.train()
+#     for X,y in train_loader:
+#         trainer.zero_grad()
+#         l=loss(net(X),y)
+#         trainer.backward(l)
+#         trainer.step()
+#     with jt.no_grad():
+#         net.eval()
+#         for X,y in val_loader:
+#             top1_val_acc+=accuracy(net(X),y)
+#             top5_val_acc+=top5_accuracy(net(X),y)
+#             val_loss+=loss(net(X),y)
              
-        for X,y in train_loader:
-            train_acc+=accuracy(net(X),y)
-            train_loss+=loss(net(X),y)
+#         for X,y in train_loader:
+#             train_acc+=accuracy(net(X),y)
+#             train_loss+=loss(net(X),y)
         
-        top1_val_acc/=val_set.total_len/batch_size
-        top5_val_acc/=val_set.total_len/batch_size
-        train_acc/=train_set.total_len/batch_size
+#         top1_val_acc/=val_set.total_len/batch_size
+#         top5_val_acc/=val_set.total_len/batch_size
+#         train_acc/=train_set.total_len/batch_size
         
-        val_loss/=val_set.total_len/batch_size
-        train_loss/=train_set.total_len/batch_size
+#         val_loss/=val_set.total_len/batch_size
+#         train_loss/=train_set.total_len/batch_size
         
-        train_loss_total.append(train_loss)
-        val_loss_total.append(val_loss)
+#         train_loss_total.append(train_loss)
+#         val_loss_total.append(val_loss)
         
-        print(f'epoch: {epoch+1}')
-        print(f'train_loss: {train_loss}, val_loss: {val_loss}')
-        print(f'train_acc: {train_acc}, top1_val_acc: {top1_val_acc}, top5_val_acc: {top5_val_acc}')
+#         print(f'epoch: {epoch+1}')
+#         print(f'train_loss: {train_loss}, val_loss: {val_loss}')
+#         print(f'train_acc: {train_acc}, top1_val_acc: {top1_val_acc}, top5_val_acc: {top5_val_acc}')
 
-        early_stopper(val_loss,net)
-        if early_stopper.stop:
-            break
+#         early_stopper(val_loss,net)
+#         if early_stopper.stop:
+#             break
 
-early_stopper.restore(net)
-jt.save(net.state_dict(),'./train_weights.p')
+# early_stopper.restore(net)
+# jt.save(net.state_dict(),'./train_weights.p')
+
+num_classes = len(val_set.class_to_idx)
+confusion_matrix = np.zeros((num_classes, num_classes), dtype=int)
+
+def get_predictions(model, loader):
+    model.eval()
+    with jt.no_grad():
+        for X, y in loader:
+            logits = model(X)
+            preds,_=jt.argmax(logits,dim=1)
+            preds = np.array(preds)
+            y_true = np.array(y)
+            for t, p in zip(y_true, preds):
+                confusion_matrix[t, p] += 1
+                
 
 net.eval()
 top1_val_acc,top5_val_acc=0,0
-# net.load_state_dict(jt.load('./train_weights.p'))
+
+net.load_state_dict(jt.load('./train_weights.p'))
+get_predictions(net, val_loader)
+class_accuracy = confusion_matrix.diagonal() / confusion_matrix.sum(axis=1)
+
+plt.figure(figsize=(12, 10))
+plt.imshow(confusion_matrix, cmap='viridis')
+plt.colorbar(label='Count')
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix Heatmap')
+plt.show()
+
 start_time=time.time()
 for X,y in val_loader:
     top1_val_acc+=accuracy(net(X),y)
@@ -253,11 +280,11 @@ for X,y in val_loader:
 end_time=time.time()
 top1_val_acc/=val_set.total_len/batch_size
 top5_val_acc/=val_set.total_len/batch_size
-print(f'origin_deploy_time: {end_time-start_time}, origin_top1_acc: {top1_val_acc}, origin_top5_acc: {top5_val_acc}')
+print(f'origin_deploy_time: {(end_time-start_time):.4f}, origin_top1_acc: {top1_val_acc:.4f}, origin_top5_acc: {top5_val_acc:.4f}')
 
 net.switch_to_deploy()
-# net.load_state_dict(jt.load('./deploy_weights.p'))
-jt.save(net.state_dict(),'./deploy_weights.p')
+net.load_state_dict(jt.load('./deploy_weights.p'))
+# jt.save(net.state_dict(),'./deploy_weights.p')
 top1_val_acc,top5_val_acc=0,0
 start_time=time.time()
 for X,y in val_loader:
@@ -266,19 +293,19 @@ for X,y in val_loader:
 end_time=time.time()
 top1_val_acc/=val_set.total_len/batch_size
 top5_val_acc/=val_set.total_len/batch_size
-print(f'rep_deploy_time: {end_time-start_time}, rep_top1_acc: {top1_val_acc}, rep_top5_acc: {top5_val_acc}')
+print(f'rep_deploy_time: {(end_time-start_time):.4f}, rep_top1_acc: {top1_val_acc:.4f}, rep_top5_acc: {top5_val_acc:.4f}')
 
-plt.figure(figsize=(10, 5))
-plt.plot(train_loss_total,label='Train Loss')
-plt.plot(val_loss_total,label='Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-# plt.title('VGG11_bn Loss Curve')
-plt.title('RepVGG Loss Curve')
-plt.legend()
-plt.grid(True)
-plt.savefig('RepVGG Loss Curve.png')
-plt.show()
+# plt.figure(figsize=(10, 5))
+# plt.plot(train_loss_total,label='Train Loss')
+# plt.plot(val_loss_total,label='Validation Loss')
+# plt.xlabel('Epoch')
+# plt.ylabel('Loss')
+# # plt.title('VGG11_bn Loss Curve')
+# plt.title('RepVGG Loss Curve')
+# plt.legend()
+# plt.grid(True)
+# plt.savefig('RepVGG Loss Curve.png')
+# plt.show()
 
 # print(train_set.class_to_idx)
 
